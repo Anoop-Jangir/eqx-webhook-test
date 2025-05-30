@@ -1,19 +1,58 @@
 const express = require('express');
+const crypto = require('crypto');
+const bodyParser = require('body-parser');
+require('dotenv').config();
+
 const app = express();
 
-app.use(express.json());
+// Use raw body for POST (needed for signature validation)
+app.use(
+  '/webhook/orders/create',
+  bodyParser.raw({ type: 'application/json' })
+);
 
+// 🔐 Common HMAC verification function
+function isValidShopifyRequest(req) {
+  const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
+  const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
+
+  const hash = crypto
+    .createHmac('sha256', secret)
+    .update(req.body, 'utf8')
+    .digest('base64');
+
+  return hmacHeader === hash;
+}
+
+// ✅ POST webhook handler
 app.post('/webhook/orders/create', (req, res) => {
-  console.log('Received Shopify webhook:', req.body);
-  res.sendStatus(200);
+  if (!isValidShopifyRequest(req)) {
+    console.warn('❌ POST HMAC verification failed');
+    return res.status(401).send('Unauthorized');
+  }
+
+  const jsonBody = JSON.parse(req.body.toString('utf8'));
+  console.log('✅ POST Webhook verified:', jsonBody);
+  res.status(200).send('POST webhook received');
 });
 
+// ✅ GET handler for manual testing
 app.get('/webhook/orders/create', (req, res) => {
-  console.log('Received Shopify webhook:', req.body);
-  res.sendStatus(200);
+  if (!isValidShopifyRequest(req)) {
+    console.warn('❌ GET HMAC verification failed');
+    return res.status(401).send('Unauthorized');
+  }
+
+  console.log('✅ GET Webhook request verified');
+  res.status(200).send('GET webhook verified');
+});
+
+// Health check
+app.get('/', (req, res) => {
+  res.send('🚀 Shopify webhook listener is live!');
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🔊 Listening on port ${PORT}`);
 });
