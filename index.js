@@ -13,7 +13,7 @@ app.use(
 // 🔐 Common HMAC verification function
 function isValidShopifyRequest(req) {
   const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
-  const secret = "62f08cfe88a27c46a08f6a86e92e1932";
+  const secret = "62f08cfe88a27c46a08f6a86e92e193";
 
   const hash = crypto
     .createHmac('sha256', secret)
